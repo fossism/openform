@@ -53,25 +53,62 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 5000;
 
+const fs = require('fs');
+const path = require('path');
+
+let mongoServer; // Keep track of the instance globally
+
 // Connect to MongoDB
 const connectDB = async () => {
   try {
-    // We will use mongodb-memory-server for this local testing session
-    // so you don't need to install MongoDB on your machine!
-    const { MongoMemoryServer } = require('mongodb-memory-server');
-    const mongoServer = await MongoMemoryServer.create();
-    const mongoUri = mongoServer.getUri();
-
-    await mongoose.connect(mongoUri);
-    console.log(`Connected to IN-MEMORY MongoDB successfully at ${mongoUri}`);
+    const mongoUri = process.env.MONGO_URI;
+    
+    // Check if the user has provided a real MongoDB Atlas URI
+    if (mongoUri && mongoUri.includes('cluster')) {
+      await mongoose.connect(mongoUri);
+      console.log('✅ Connected to MongoDB Atlas permanently!');
+    } else {
+      // Fallback: Safe, crash-free In-Memory Database for local testing
+      console.log('⚠️ No MongoDB Atlas URI detected in .env');
+      console.log('⚠️ Falling back to temporary In-Memory Database...');
+      const { MongoMemoryServer } = require('mongodb-memory-server');
+      
+      mongoServer = await MongoMemoryServer.create();
+      await mongoose.connect(mongoServer.getUri());
+      console.log(`✅ Connected to Temporary MongoDB at ${mongoServer.getUri()}`);
+    }
     
     app.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
+      console.log(`🚀 Server running on port ${PORT}`);
     });
   } catch (error) {
-    console.error('MongoDB connection error:', error);
+    console.error('❌ MongoDB connection error:', error);
     process.exit(1);
   }
 };
 
 connectDB();
+
+// Graceful shutdown handlers for Nodemon restarts
+const shutdown = async () => {
+  if (mongoServer) {
+    await mongoose.disconnect();
+    await mongoServer.stop();
+    console.log('🛑 MongoDB Memory Server stopped gracefully');
+  }
+};
+
+process.once('SIGUSR2', async () => {
+  await shutdown();
+  process.kill(process.pid, 'SIGUSR2');
+});
+
+process.on('SIGINT', async () => {
+  await shutdown();
+  process.exit(0);
+});
+
+process.on('SIGTERM', async () => {
+  await shutdown();
+  process.exit(0);
+});

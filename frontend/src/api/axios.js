@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Create an Axios instance pointing to our backend API
 const API = axios.create({
-  baseURL: 'http://localhost:5000/api', // This connects React to Express
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api', // Connects React to Express dynamically
 });
 
 // Middleware for Axios: Runs before every request is sent
