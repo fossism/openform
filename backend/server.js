@@ -8,9 +8,31 @@ const formRoutes = require('./routes/formRoutes');
 const responseRoutes = require('./routes/responseRoutes');
 
 const app = express();
+const helmet = require('helmet');
+const mongoSanitize = require('express-mongo-sanitize');
+const rateLimit = require('express-rate-limit');
 
-// Middleware
+// Security Middlewares
+// 1. Helmet secures HTTP headers (e.g., hiding X-Powered-By, enabling XSS protection)
+app.use(helmet());
+
+// 2. Mongo Sanitize prevents NoSQL injection by removing malicious keys (like '$') from req.body/query
+app.use(mongoSanitize());
+
+// 3. Rate Limiting prevents brute-force attacks by limiting requests per IP
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per `window` (here, per 15 minutes)
+  message: 'Too many requests from this IP, please try again after 15 minutes',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+// Apply the rate limiting middleware to API calls only
+app.use('/api', apiLimiter);
+
+// 4. Relaxed CORS to prevent Vite dev server network errors
 app.use(cors());
+
 app.use(express.json());
 
 // Routes

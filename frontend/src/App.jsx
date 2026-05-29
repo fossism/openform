@@ -20,19 +20,44 @@ const Home = () => (
 function Navigation() {
   const { user, logout } = React.useContext(AuthContext);
   return (
-    <header style={{ padding: '1rem', background: 'var(--surface-color)', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-      <a href="/" style={{ color: 'var(--primary-color)', margin: 0, fontSize: '1.5rem', fontWeight: 700, textDecoration: 'none' }}>OpenForm</a>
-      <nav>
+    <header style={{ 
+      padding: '1.5rem', 
+      background: 'var(--surface-color)', 
+      backdropFilter: 'var(--glass-blur)',
+      WebkitBackdropFilter: 'var(--glass-blur)',
+      borderBottom: '1px solid rgba(255, 255, 255, 0.4)', 
+      display: 'flex', 
+      justifyContent: 'space-between', 
+      alignItems: 'center',
+      position: 'sticky',
+      top: 0,
+      zIndex: 100
+    }}>
+      <a href="/" style={{ color: 'var(--primary-color)', margin: 0, fontSize: '1.75rem', fontWeight: 800, textDecoration: 'none', letterSpacing: '-0.05em' }}>openform</a>
+      <nav style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
         {user ? (
           <>
-            <span style={{ marginRight: '1rem', color: 'var(--text-muted)' }}>Hello, {user.name}</span>
-            <a href="/dashboard" style={{ marginRight: '1rem' }}>Dashboard</a>
-            <button onClick={logout} style={{ background: 'transparent', border: 'none', color: 'var(--error-color)', fontWeight: 600 }}>Logout</button>
+            <span style={{ color: 'var(--text-main)', fontWeight: 600 }}>Hi, {user.name}</span>
+            <a href="/dashboard">Dashboard</a>
+            <button onClick={logout} style={{ 
+              background: 'rgba(239, 68, 68, 0.1)', 
+              border: '1px solid rgba(239, 68, 68, 0.3)', 
+              color: 'var(--error-color)', 
+              fontWeight: 600,
+              padding: '0.5rem 1rem',
+              borderRadius: 'var(--radius-md)'
+            }}>Logout</button>
           </>
         ) : (
           <>
-            <a href="/login" style={{ marginRight: '1rem' }}>Login</a>
-            <a href="/register">Register</a>
+            <a href="/login">Login</a>
+            <a href="/register" style={{
+              background: 'var(--primary-color)',
+              color: 'white',
+              padding: '0.5rem 1.25rem',
+              borderRadius: 'var(--radius-md)',
+              fontWeight: 600
+            }}>Register</a>
           </>
         )}
       </nav>

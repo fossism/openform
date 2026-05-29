@@ -7,6 +7,11 @@ const FormViewer = () => {
   const navigate = useNavigate();
   const [form, setForm] = useState(null);
   const [loading, setLoading] = useState(true);
+  
+  // -1 means the "Welcome/Intro" screen. 
+  // 0 to form.questions.length-1 are the actual questions.
+  const [currentIndex, setCurrentIndex] = useState(-1); 
+  
   const [answers, setAnswers] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -26,6 +31,21 @@ const FormViewer = () => {
     fetchForm();
   }, [id]);
 
+  // Handle keyboard navigation (Enter to go next)
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        // Prevent default to avoid line breaks in textareas when pressing enter to submit
+        if (e.target.tagName !== 'TEXTAREA') {
+          e.preventDefault();
+          handleNext();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [currentIndex, form, answers]);
+
   const handleInputChange = (questionId, value) => {
     setAnswers(prev => ({ ...prev, [questionId]: value }));
   };
@@ -41,11 +61,42 @@ const FormViewer = () => {
     });
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setSubmitting(true);
+  const isCurrentQuestionAnswered = () => {
+    if (currentIndex === -1) return true;
+    const q = form.questions[currentIndex];
+    if (!q.required) return true;
     
-    // Format answers array for the backend
+    const ans = answers[q.id];
+    if (q.type === 'checkboxes') return ans && ans.length > 0;
+    return ans !== undefined && ans.trim && ans.trim() !== '';
+  };
+
+  const handleNext = () => {
+    if (currentIndex === -1) {
+      setCurrentIndex(0);
+      return;
+    }
+    
+    if (!isCurrentQuestionAnswered()) {
+      alert("Please answer this required question before proceeding.");
+      return;
+    }
+
+    if (currentIndex < form.questions.length - 1) {
+      setCurrentIndex(currentIndex + 1);
+    } else {
+      handleSubmit();
+    }
+  };
+
+  const handlePrevious = () => {
+    if (currentIndex > -1) {
+      setCurrentIndex(currentIndex - 1);
+    }
+  };
+
+  const handleSubmit = async () => {
+    setSubmitting(true);
     const formattedAnswers = Object.keys(answers).map(questionId => ({
       questionId,
       value: answers[questionId]
@@ -64,99 +115,174 @@ const FormViewer = () => {
     }
   };
 
-  if (loading) return <div className="container mt-4 text-center">Loading form...</div>;
+  if (loading) return <div className="container mt-4 text-center">Loading...</div>;
   if (error) return <div className="container mt-4 text-center" style={{ color: 'var(--error-color)' }}>{error}</div>;
+
   if (submitted) return (
-    <div className="container mt-4 animate-fade-in" style={{ maxWidth: '600px' }}>
-      <div className="card text-center" style={{ borderTop: '8px solid var(--success-color)' }}>
-        <h2>Thank you!</h2>
-        <p style={{ color: 'var(--text-muted)' }}>Your response has been recorded.</p>
-        <button onClick={() => navigate('/')} style={{ background: 'var(--bg-color)', color: 'var(--text-main)', padding: '0.5rem 1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', marginTop: '1rem' }}>
-          Go to Home
+    <div className="container animate-fade-in" style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div className="card text-center slide-up" style={{ width: '100%', maxWidth: '600px' }}>
+        <h1 style={{ fontSize: '3rem', marginBottom: '1rem' }}>Done!</h1>
+        <p style={{ fontSize: '1.2rem', color: 'var(--text-muted)', marginBottom: '2rem' }}>Your response has been securely recorded.</p>
+        <button 
+          onClick={() => navigate('/')} 
+          style={{ background: 'var(--primary-color)', color: 'white', padding: '1rem 2rem', borderRadius: 'var(--radius-lg)', border: 'none', fontSize: '1.1rem', fontWeight: 600 }}
+        >
+          Create your own OpenForm
         </button>
       </div>
     </div>
   );
 
+  // Progress Bar calculation
+  const progress = currentIndex === -1 ? 0 : Math.round(((currentIndex) / form.questions.length) * 100);
+
   return (
-    <div className="container animate-fade-in" style={{ maxWidth: '800px', paddingBottom: '4rem' }}>
-      <div className="card" style={{ borderTop: '8px solid var(--primary-color)', marginBottom: '2rem', marginTop: '2rem' }}>
-        <h1 style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>{form.title}</h1>
-        {form.description && <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>{form.description}</p>}
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+      {/* Progress Bar */}
+      <div style={{ width: '100%', height: '6px', background: 'rgba(255,102,0,0.1)', position: 'fixed', top: 0, left: 0, zIndex: 1000 }}>
+        <div style={{ height: '100%', background: 'var(--primary-color)', width: `${progress}%`, transition: 'width 0.4s ease' }}></div>
       </div>
 
-      <form onSubmit={handleSubmit}>
-        {form.questions.map((q, index) => (
-          <div key={q.id} className="card" style={{ marginBottom: '1.5rem' }}>
-            <h3 style={{ marginBottom: '1rem', fontSize: '1.2rem' }}>
-              {index + 1}. {q.text} {q.required && <span style={{ color: 'var(--error-color)' }}>*</span>}
-            </h3>
-
-            {q.type === 'short_text' && (
-              <input 
-                type="text" 
-                required={q.required}
-                onChange={e => handleInputChange(q.id, e.target.value)}
-                style={{ width: '100%', padding: '0.75rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', outline: 'none' }}
-                placeholder="Your answer"
-              />
-            )}
-
-            {q.type === 'long_text' && (
-              <textarea 
-                required={q.required}
-                rows="4"
-                onChange={e => handleInputChange(q.id, e.target.value)}
-                style={{ width: '100%', padding: '0.75rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', outline: 'none', resize: 'vertical' }}
-                placeholder="Your answer"
-              />
-            )}
-
-            {q.type === 'multiple_choice' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                {q.options.map((opt, i) => (
-                  <label key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer' }}>
-                    <input 
-                      type="radio" 
-                      name={`question_${q.id}`} 
-                      required={q.required}
-                      onChange={() => handleInputChange(q.id, opt)}
-                      style={{ transform: 'scale(1.2)' }}
-                    />
-                    <span style={{ fontSize: '1.1rem' }}>{opt}</span>
-                  </label>
-                ))}
-              </div>
-            )}
-
-            {q.type === 'checkboxes' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                {q.options.map((opt, i) => (
-                  <label key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer' }}>
-                    <input 
-                      type="checkbox" 
-                      onChange={e => handleCheckboxChange(q.id, opt, e.target.checked)}
-                      style={{ transform: 'scale(1.2)' }}
-                    />
-                    <span style={{ fontSize: '1.1rem' }}>{opt}</span>
-                  </label>
-                ))}
-              </div>
-            )}
+      <div className="container" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem' }}>
+        
+        {/* Intro Screen */}
+        {currentIndex === -1 && (
+          <div className="slide-up text-center" style={{ maxWidth: '800px' }}>
+            <h1 style={{ fontSize: '3.5rem', marginBottom: '1.5rem', lineHeight: 1.1 }}>{form.title}</h1>
+            {form.description && <p style={{ fontSize: '1.5rem', color: 'var(--text-muted)', marginBottom: '3rem' }}>{form.description}</p>}
+            <button 
+              onClick={handleNext}
+              style={{ background: 'var(--primary-color)', color: 'white', padding: '1.25rem 3rem', borderRadius: 'var(--radius-lg)', border: 'none', fontSize: '1.25rem', fontWeight: 700, boxShadow: 'var(--shadow-md)' }}
+            >
+              Start &rarr;
+            </button>
+            <p style={{ marginTop: '1rem', color: 'var(--text-muted)', fontSize: '0.9rem' }}>Press Enter</p>
           </div>
-        ))}
+        )}
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '2rem' }}>
+        {/* Question Screens */}
+        {currentIndex >= 0 && currentIndex < form.questions.length && (
+          <div key={currentIndex} className="slide-up" style={{ width: '100%', maxWidth: '800px' }}>
+            {(() => {
+              const q = form.questions[currentIndex];
+              return (
+                <div>
+                  <div style={{ color: 'var(--primary-color)', fontWeight: 700, marginBottom: '1rem', letterSpacing: '0.1em' }}>
+                    {currentIndex + 1} OF {form.questions.length}
+                  </div>
+                  <h2 style={{ fontSize: '2.5rem', marginBottom: '2rem', color: 'var(--text-main)' }}>
+                    {q.text} {q.required && <span style={{ color: 'var(--error-color)' }}>*</span>}
+                  </h2>
+
+                  {/* Input Rendering based on type */}
+                  <div style={{ fontSize: '1.5rem' }}>
+                    {q.type === 'short_text' && (
+                      <input 
+                        type="text" 
+                        autoFocus
+                        value={answers[q.id] || ''}
+                        onChange={e => handleInputChange(q.id, e.target.value)}
+                        placeholder="Type your answer here..."
+                        style={{ width: '100%', padding: '1rem 0', border: 'none', borderBottom: '2px solid var(--primary-color)', background: 'transparent', fontSize: '2rem', outline: 'none', color: 'var(--text-main)' }}
+                      />
+                    )}
+
+                    {q.type === 'long_text' && (
+                      <textarea 
+                        autoFocus
+                        rows="4"
+                        value={answers[q.id] || ''}
+                        onChange={e => handleInputChange(q.id, e.target.value)}
+                        placeholder="Type your answer here..."
+                        style={{ width: '100%', padding: '1.5rem', borderRadius: 'var(--radius-lg)', border: '2px solid rgba(255,102,0,0.3)', background: 'rgba(255,255,255,0.6)', fontSize: '1.5rem', outline: 'none', resize: 'vertical' }}
+                      />
+                    )}
+
+                    {(q.type === 'multiple_choice' || q.type === 'checkboxes') && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                        {q.options.map((opt, i) => {
+                          const isChecked = q.type === 'multiple_choice' 
+                            ? answers[q.id] === opt 
+                            : (answers[q.id] || []).includes(opt);
+                            
+                          return (
+                            <label 
+                              key={i} 
+                              style={{ 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                gap: '1rem', 
+                                cursor: 'pointer',
+                                padding: '1rem 1.5rem',
+                                borderRadius: 'var(--radius-md)',
+                                border: `2px solid ${isChecked ? 'var(--primary-color)' : 'rgba(255,102,0,0.2)'}`,
+                                background: isChecked ? 'rgba(255,102,0,0.1)' : 'rgba(255,255,255,0.5)',
+                                transition: 'all 0.2s ease'
+                              }}
+                            >
+                              <input 
+                                type={q.type === 'multiple_choice' ? 'radio' : 'checkbox'} 
+                                name={`q_${q.id}`}
+                                checked={isChecked}
+                                onChange={(e) => {
+                                  if (q.type === 'multiple_choice') {
+                                    handleInputChange(q.id, opt);
+                                    // Auto-advance for multiple choice
+                                    setTimeout(() => handleNext(), 300);
+                                  } else {
+                                    handleCheckboxChange(q.id, opt, e.target.checked);
+                                  }
+                                }}
+                                style={{ transform: 'scale(1.5)', accentColor: 'var(--primary-color)' }}
+                              />
+                              <span>{opt}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Navigation Footer */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '3rem' }}>
+                    <button 
+                      onClick={handleNext}
+                      style={{ background: 'var(--primary-color)', color: 'white', padding: '1rem 2rem', borderRadius: 'var(--radius-lg)', border: 'none', fontSize: '1.25rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem', boxShadow: 'var(--shadow-md)' }}
+                    >
+                      {currentIndex === form.questions.length - 1 ? 'Submit' : 'OK'} &rarr;
+                    </button>
+                    {currentIndex === form.questions.length - 1 && (
+                      <span style={{ color: 'var(--text-muted)' }}>Press Enter to Submit</span>
+                    )}
+                    {currentIndex < form.questions.length - 1 && (
+                      <span style={{ color: 'var(--text-muted)' }}>Press Enter</span>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        )}
+      </div>
+
+      {/* Floating navigation controls */}
+      {currentIndex >= 0 && (
+        <div style={{ position: 'fixed', bottom: '2rem', right: '2rem', display: 'flex', gap: '0.5rem' }}>
           <button 
-            type="submit" 
-            disabled={submitting}
-            style={{ background: 'var(--primary-color)', color: 'white', padding: '1rem 2rem', borderRadius: 'var(--radius-md)', border: 'none', fontWeight: 600, fontSize: '1.1rem', cursor: submitting ? 'not-allowed' : 'pointer' }}
+            onClick={handlePrevious} 
+            disabled={currentIndex === -1}
+            style={{ padding: '0.75rem 1rem', background: 'var(--surface-solid)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', color: 'var(--text-main)', fontWeight: 600 }}
           >
-            {submitting ? 'Submitting...' : 'Submit Form'}
+            &uarr; Previous
           </button>
-          <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Powered by OpenForm</span>
+          <button 
+            onClick={handleNext}
+            style={{ padding: '0.75rem 1rem', background: 'var(--surface-solid)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', color: 'var(--text-main)', fontWeight: 600 }}
+          >
+            Next &darr;
+          </button>
         </div>
-      </form>
+      )}
     </div>
   );
 };
