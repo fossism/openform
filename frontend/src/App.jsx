@@ -6,6 +6,8 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import FormBuilder from './pages/FormBuilder';
+import FormViewer from './pages/FormViewer';
+import ResponsesDashboard from './pages/ResponsesDashboard';
 
 // Placeholder Pages
 const Home = () => (
@@ -14,7 +16,6 @@ const Home = () => (
     <p>A robust open-source alternative to Google Forms.</p>
   </div>
 );
-const FormViewer = () => <div className="container mt-4"><h2>Form Viewer</h2></div>;
 
 function Navigation() {
   const { user, logout } = React.useContext(AuthContext);
@@ -52,6 +53,7 @@ function App() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/form/builder" element={<FormBuilder />} />
             <Route path="/form/:id" element={<FormViewer />} />
+            <Route path="/responses/:id" element={<ResponsesDashboard />} />
           </Routes>
         </main>
       </div>
