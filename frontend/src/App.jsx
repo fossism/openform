@@ -5,6 +5,7 @@ import { AuthContext } from './context/AuthContext';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
+import FormBuilder from './pages/FormBuilder';
 
 // Placeholder Pages
 const Home = () => (
@@ -13,7 +14,6 @@ const Home = () => (
     <p>A robust open-source alternative to Google Forms.</p>
   </div>
 );
-const FormBuilder = () => <div className="container mt-4"><h2>Form Builder</h2></div>;
 const FormViewer = () => <div className="container mt-4"><h2>Form Viewer</h2></div>;
 
 function Navigation() {
